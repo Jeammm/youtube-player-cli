@@ -1,5 +1,26 @@
-import React from 'react';
-import { render } from 'ink';
-import App from './app.js';
+import React from "react";
+import { render } from "ink";
+import App from "./app.js";
+import ansiEscapes from "ansi-escapes";
 
-render(<App />);
+// Enter alternate screen
+process.stdout.write(ansiEscapes.enterAlternativeScreen);
+process.stdout.write(ansiEscapes.cursorHide);
+
+// Restore terminal on exit
+const cleanup = () => {
+  process.stdout.write(ansiEscapes.cursorShow);
+  process.stdout.write(ansiEscapes.exitAlternativeScreen);
+};
+
+process.on("exit", cleanup);
+process.on("SIGINT", () => {
+  cleanup();
+  process.exit();
+});
+process.on("SIGTERM", () => {
+  cleanup();
+  process.exit();
+});
+
+render(<App />, {});

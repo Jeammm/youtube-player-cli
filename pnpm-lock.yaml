@@ -23,6 +23,9 @@ importers:
       ink-text-input:
         specifier: ^6.0.0
         version: 6.0.0(ink@6.5.1(@types/react@19.2.7)(react@19.2.3))(react@19.2.3)
+      ink-use-stdout-dimensions:
+        specifier: ^1.0.5
+        version: 1.0.5(ink@6.5.1(@types/react@19.2.7)(react@19.2.3))(react@19.2.3)
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
@@ -728,6 +731,12 @@ packages:
     peerDependencies:
       ink: '>=5'
       react: '>=18'
+
+  ink-use-stdout-dimensions@1.0.5:
+    resolution: {integrity: sha512-rVsqnw4tQEAJUoknU09+zHdDf30GJdkumkHr0iz/TOYMYEZJkYqziQSGJAM+Z+M603EDfO89+Nxyn/Ko2Zknfw==}
+    peerDependencies:
+      ink: '>=2.0.0'
+      react: '>=16.0.0'
 
   ink@6.5.1:
     resolution: {integrity: sha512-wF3j/DmkM8q5E+OtfdQhCRw8/0ahkc8CUTgEddxZzpEWPslu7YPL3t64MWRoI9m6upVGpfAg4ms2BBvxCdKRLQ==}
@@ -1647,6 +1656,11 @@ snapshots:
       ink: 6.5.1(@types/react@19.2.7)(react@19.2.3)
       react: 19.2.3
       type-fest: 4.41.0
+
+  ink-use-stdout-dimensions@1.0.5(ink@6.5.1(@types/react@19.2.7)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      ink: 6.5.1(@types/react@19.2.7)(react@19.2.3)
+      react: 19.2.3
 
   ink@6.5.1(@types/react@19.2.7)(react@19.2.3):
     dependencies:
