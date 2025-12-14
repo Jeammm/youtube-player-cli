@@ -6,6 +6,7 @@ interface Video {
   title: string;
   author: string;
   duration: string; // e.g., "3:45"
+  thumbnail?: string;
 }
 
 interface PlayerState {
@@ -28,10 +29,12 @@ interface PlayerState {
     | "error"
     | "ready";
   error: string | null;
+  searchResults: Video[];
+  searchQuery: string;
 
   // Actions
   initPlayer: () => Promise<void>;
-  loadVideo: (video: Video) => Promise<void>;
+  loadVideo: (video?: Video) => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
   togglePlayPause: () => Promise<void>;
@@ -43,6 +46,9 @@ interface PlayerState {
   setQueue: (videos: Video[], startIndex?: number) => void;
   clearQueue: () => void;
   seek: (seconds: number) => Promise<void>;
+  setCurrentVideo: (video: Video | null) => void;
+  setSearchResults: (results: Video[]) => void;
+  setSearchQuery: (query: string) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -57,28 +63,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentVideo: null,
   status: "idle",
   error: null,
+  searchResults: [],
+  searchQuery: "",
 
   initPlayer: async () => {
     if (get().isInitialized) return;
     set({ status: "initializing" });
     try {
       await mpvPlayer.start();
+      let lastSecond = -1;
+
       mpvPlayer.on("property-change", (event: any) => {
-        if (event.name === "time-pos") {
-          set({ progress: event.data || 0 });
-        } else if (event.name === "duration") {
-          set({ duration: event.data || 0 });
-        } else if (event.name === "pause") {
-          set({ isPlaying: !event.data });
-        } else if (event.name === "eof-reached" && event.data === true) {
-          const { loop, autoplay, next } = get();
-          if (loop) {
-            mpvPlayer.load(get().currentVideo!.videoId);
-          } else if (autoplay) {
-            next();
-          } else {
-            set({ isPlaying: false, status: "ended" });
+        switch (event.name) {
+          case "time-pos": {
+            const sec = Math.floor(event.data ?? 0);
+            if (sec !== lastSecond) {
+              lastSecond = sec;
+              set({ progress: sec });
+            }
+            break;
           }
+
+          case "duration":
+            set({ duration: event.data || 0 });
+            break;
+
+          case "pause":
+            set({ isPlaying: !event.data });
+            break;
+
+          case "eof-reached":
+            // your logic
+            break;
         }
       });
       await mpvPlayer.observeProperty("time-pos");
@@ -91,10 +107,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     }
   },
 
-  loadVideo: async (video: Video) => {
-    set({ status: "loading", currentVideo: video, progress: 0, duration: 0 });
+  loadVideo: async (video?: Video) => {
+    set({ isPlaying: true, status: "loading" });
+    if (video) {
+      set({ currentVideo: video });
+    }
+
     try {
-      await mpvPlayer.load(video.videoId);
+      await mpvPlayer.load(get().currentVideo!.videoId);
       set({ isPlaying: true, status: "playing" });
     } catch (error: any) {
       set({ status: "error", error: error.message, isPlaying: false });
@@ -182,4 +202,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   seek: async (seconds: number) => {
     await mpvPlayer.seek(seconds);
   },
+
+  setCurrentVideo: (video: Video | null) => {
+    set({ currentVideo: video });
+  },
+
+  setSearchResults: (results: Video[]) => set({ searchResults: results }),
+
+  setSearchQuery: (q: string) => set({ searchQuery: q }),
 }));

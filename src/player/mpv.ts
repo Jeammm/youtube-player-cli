@@ -199,6 +199,8 @@ class MpvPlayer {
     this.eventListeners = this.eventListeners.filter((l) => l !== listener);
   }
 
+
+
   public async load(url: string): Promise<void> {
     // 'replace' will stop current playback and load new file
     await this.command([

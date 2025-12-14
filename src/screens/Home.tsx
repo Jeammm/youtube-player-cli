@@ -18,7 +18,7 @@ interface HomeProps {
 }
 
 const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
-  const [query, setQuery] = useState("");
+  const [queryValue, setQueryValue] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
 
   const { setQueue } = usePlayerStore();
 
-  const debouncedQuery = useDebouncedValue(query, 400);
+  const debouncedQuery = useDebouncedValue(queryValue, 400);
 
   // Fetch suggestions
   useEffect(() => {
@@ -45,7 +45,8 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
       .finally(() => setLoading(false));
   }, [debouncedQuery]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (inputQuery?: string) => {
+    const query = inputQuery ?? queryValue;
     if (query.trim() === "") return;
 
     if (query.startsWith("https://")) {
@@ -63,7 +64,14 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
         const videoId = url.searchParams.get("v");
         if (videoId) {
           setQueue(
-            [{ videoId, title: "Loading...", author: "", duration: "" }],
+            [
+              {
+                videoId,
+                title: "Loading...",
+                author: "",
+                duration: "",
+              },
+            ],
             0
           );
           setVideoId(videoId);
@@ -85,9 +93,12 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
       setSelectedIndex((i) => Math.max(i - 1, 0));
     }
 
-    if (key.tab && selectedIndex >= 0) {
-      setQuery(suggestions[selectedIndex]);
-      setSuggestions([]);
+    if (key.return && selectedIndex === -1) {
+      handleSubmit();
+    }
+
+    if (key.return && selectedIndex >= 0) {
+      handleSubmit(suggestions[selectedIndex]);
     }
 
     if (key.escape) {
@@ -100,7 +111,6 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
     <Box
       flexDirection="column"
       alignItems="center"
-      justifyContent="center"
       width={"100%"}
       height={"100%"}
     >
@@ -109,9 +119,8 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
       <Box flexDirection="column" marginTop={1} width={Math.min(width, 108)}>
         <Box borderStyle="round" paddingX={2}>
           <TextInput
-            value={query}
-            onChange={setQuery}
-            onSubmit={handleSubmit}
+            value={queryValue}
+            onChange={setQueryValue}
             placeholder="Search Youtube"
           />
         </Box>

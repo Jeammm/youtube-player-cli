@@ -2,6 +2,7 @@ import React from "react";
 import { render } from "ink";
 import App from "./app.js";
 import ansiEscapes from "ansi-escapes";
+import { TerminalInfoProvider } from "ink-picture";
 
 // Enter alternate screen
 process.stdout.write(ansiEscapes.enterAlternativeScreen);
@@ -23,4 +24,9 @@ process.on("SIGTERM", () => {
   process.exit();
 });
 
-render(<App />, {});
+render(
+  <TerminalInfoProvider>
+    <App />
+  </TerminalInfoProvider>,
+  {}
+);
