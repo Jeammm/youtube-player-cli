@@ -8,6 +8,8 @@ import {
   fetchSuggestions,
   useDebouncedValue,
 } from "../utils/useSearchSuggestion.js";
+import Logo from "../ascii/Logo.js";
+import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
 
 interface HomeProps {
   setScreen: (screen: Screen) => void;
@@ -20,6 +22,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [loading, setLoading] = useState(false);
+  const [width] = useStdoutDimensions();
 
   const { setQueue } = usePlayerStore();
 
@@ -94,16 +97,22 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
   });
 
   return (
-    <Box flexDirection="column" alignItems="center" justifyContent="center">
-      <Text>Y O U T U B E</Text>
+    <Box
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      width={"100%"}
+      height={"100%"}
+    >
+      <Logo />
 
-      <Box flexDirection="column" width={40}>
-        <Box>
-          <Text>🔍 Search YouTube: </Text>
+      <Box flexDirection="column" marginTop={1} width={Math.min(width, 108)}>
+        <Box borderStyle="round" paddingX={2}>
           <TextInput
             value={query}
             onChange={setQuery}
             onSubmit={handleSubmit}
+            placeholder="Search Youtube"
           />
         </Box>
 

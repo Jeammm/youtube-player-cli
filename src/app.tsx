@@ -17,11 +17,11 @@ const App = () => {
   const screenColumnsWidth = useMemo(() => {
     switch (screen) {
       case Screen.Home:
-        return width * 1;
+        return width;
       case Screen.Results:
-        return width * (1 / 2);
+        return width;
       case Screen.Player:
-        return width * (1 / 3);
+        return width * (1 / 2);
     }
   }, [screen]);
 
@@ -38,6 +38,18 @@ const App = () => {
     }
   });
 
+  if (screen === Screen.Home) {
+    return (
+      <Box width={width} height={height} flexDirection="row">
+        <Home
+          setScreen={setScreen}
+          setSearchQuery={setSearchQuery}
+          setVideoId={setVideoId}
+        />
+      </Box>
+    );
+  }
+
   return (
     <Box width={width} height={height} flexDirection="row">
       <Box
@@ -45,32 +57,14 @@ const App = () => {
         height="100%"
         borderStyle="round"
         flexDirection="column"
-        borderLeft={true}
       >
-        <Home
+        <Results
+          searchQuery={searchQuery}
           setScreen={setScreen}
-          setSearchQuery={setSearchQuery}
           setVideoId={setVideoId}
         />
       </Box>
 
-      {/* MIDDLE: Results */}
-      {screen !== Screen.Home && (
-        <Box
-          width={screenColumnsWidth}
-          height="100%"
-          borderStyle="round"
-          flexDirection="column"
-        >
-          <Results
-            searchQuery={searchQuery}
-            setScreen={setScreen}
-            setVideoId={setVideoId}
-          />
-        </Box>
-      )}
-
-      {/* RIGHT: Player */}
       {screen === Screen.Player && (
         <Box
           width={screenColumnsWidth}
