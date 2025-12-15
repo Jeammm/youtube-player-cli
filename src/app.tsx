@@ -39,6 +39,8 @@ const App = () => {
       setFocusedScreen((prev) => {
         if (prev === Screen.Home && screens[Screen.Results])
           return Screen.Results;
+        if (prev === Screen.Home && screens[Screen.Player])
+          return Screen.Player;
         if (prev === Screen.Results && screens[Screen.Player])
           return Screen.Player;
         if (prev === Screen.Results && screens[Screen.Home]) return Screen.Home;
@@ -123,6 +125,19 @@ const App = () => {
             </Box>
           );
         })}
+
+        {Object.values(screens).filter(Boolean).length > 1 && (
+          <Box flexGrow={1} justifyContent="flex-end">
+            <Box
+              borderStyle="single"
+              borderTop={false}
+              borderBottom={false}
+              paddingX={1}
+            >
+              <Text>Tab ⇥</Text>
+            </Box>
+          </Box>
+        )}
       </Box>
 
       {focusedScreen === Screen.Home && (

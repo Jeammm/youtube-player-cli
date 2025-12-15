@@ -6,6 +6,9 @@ import ProgressBar from "../ui/ProgressBar.js";
 import Image from "ink-picture";
 import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
 
+const THUMBNAIL_WIDTH = 46;
+const THUMBNAIL_HEIGHT = 13;
+
 interface PlayerProps {
   videoId: string;
   setScreen: (screen: Screen) => void;
@@ -30,20 +33,22 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
     previous,
     toggleAutoplay,
     toggleLoop,
+    play,
+    loadedVideoId,
   } = usePlayerStore();
 
-  const [width, height] = useStdoutDimensions();
-  const thumbnailHeight = height - 6;
+  const [width] = useStdoutDimensions();
 
   useEffect(() => {
     initPlayer();
   }, [initPlayer]);
 
   useEffect(() => {
-    if (isInitialized && currentVideo?.videoId) {
+    if (isInitialized && currentVideo?.videoId !== loadedVideoId) {
       loadVideo();
+      play();
     }
-  }, [isInitialized, currentVideo, loadVideo]);
+  }, [isInitialized, currentVideo, loadVideo, loadedVideoId]);
 
   useInput((input, key) => {
     if (key.escape) {
@@ -81,23 +86,27 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
 
   return (
     <Box flexDirection="column" width={width} paddingX={2}>
+      <Box borderStyle="round" borderColor="red" paddingX={1}>
+        <Text color="red">YouTube : </Text>
+        <Text> https://www.youtube.com/watch?v={currentVideo.videoId}</Text>
+      </Box>
+
       {/* ───── Top Row ───── */}
       <Box flexDirection="row">
         {/* Thumbnail */}
         <Box
-          width={Math.min(50, Math.floor(width * 0.45))}
+          width={THUMBNAIL_WIDTH}
+          height={THUMBNAIL_HEIGHT}
           marginRight={2}
           flexShrink={0}
+          justifyContent="center"
         >
           {currentVideo.thumbnail ? (
-            <Box
-              width="100%"
-              height={Math.floor(
-                Math.min((Math.min(50, width * 0.45) * 9) / 16, thumbnailHeight)
-              )}
-            >
-              <Image src={currentVideo.thumbnail} />
-            </Box>
+            <Image
+              src={currentVideo.thumbnail}
+              width={THUMBNAIL_WIDTH}
+              height={THUMBNAIL_HEIGHT}
+            />
           ) : (
             <Text dimColor>[ loading thumbnail ]</Text>
           )}
@@ -110,36 +119,35 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
           </Text>
           <Text dimColor>{currentVideo.author}</Text>
 
-          <Box marginTop={1}>
-            <Text dimColor>Space Play / Pause</Text>
+          <Box flexGrow={1}></Box>
+
+          <Box marginTop={1} flexDirection="column" gap={1}>
+            <Text dimColor>Space Play ▶ / Pause ⏸</Text>
             <Text dimColor>N Next P Prev</Text>
             <Text dimColor>A Autoplay [{autoplay ? "ON" : "OFF"}]</Text>
+            <Text dimColor>L Loop [{loop ? "ON" : "OFF"}]</Text>
+            <Text dimColor>ESC Stop</Text>
           </Box>
-
-          {/* Push Loop to bottom aligned with thumbnail bottom */}
-          <Box flexGrow={1} />
-          <Text dimColor>L Loop [{loop ? "ON" : "OFF"}]</Text>
         </Box>
       </Box>
 
       {/* ───── Progress Bar (under thumbnail) ───── */}
-      <Box
-        marginTop={1}
-        flexDirection="row"
-        alignItems="center"
-        marginLeft={Math.min(50, Math.floor(width * 0.45)) + 2}
-      >
-        <Text>{isPlaying ? "▶" : "⏸"}</Text>
+      <Box marginTop={1} flexDirection="row" alignItems="center">
+        <Text>{isPlaying ? "⏸" : "▶"}</Text>
         <Box marginX={1}>
           <ProgressBar
             progress={progress}
             duration={duration}
-            width={Math.min(40, width - 30)}
+            width={width - 25}
           />
         </Box>
-        <Text dimColor>
-          {formatTime(progress)} / {formatTime(duration)}
-        </Text>
+        {!duration ? (
+          <Text dimColor>Loading...</Text>
+        ) : (
+          <Text dimColor>
+            {formatTime(progress)} / {formatTime(duration)}
+          </Text>
+        )}
       </Box>
     </Box>
   );

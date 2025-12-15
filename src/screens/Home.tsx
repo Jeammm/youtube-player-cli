@@ -10,6 +10,7 @@ import {
 } from "../utils/useSearchSuggestion.js";
 import Logo from "../ascii/Logo.js";
 import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
+import { getVideoMeta } from "../yt/search.js";
 
 interface HomeProps {
   setScreen: (screen: Screen) => void;
@@ -22,6 +23,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const [loading, setLoading] = useState(false);
+  const [videoDataLoading, setVideoDataLoading] = useState(false);
   const [width] = useStdoutDimensions();
 
   const { setQueue } = usePlayerStore();
@@ -50,6 +52,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
     if (query.trim() === "") return;
 
     if (query.startsWith("https://")) {
+      setVideoDataLoading(true);
       const playlistId = getPlaylistIdFromUrl(query);
 
       if (playlistId) {
@@ -63,21 +66,13 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
         const url = new URL(query);
         const videoId = url.searchParams.get("v");
         if (videoId) {
-          setQueue(
-            [
-              {
-                videoId,
-                title: "Loading...",
-                author: "",
-                duration: "",
-              },
-            ],
-            0
-          );
+          const videoData = await getVideoMeta(videoId);
+          setQueue([videoData], 0);
           setVideoId(videoId);
           setScreen(Screen.Player);
         }
       }
+      setVideoDataLoading(false);
     } else {
       setSearchQuery(query);
       setScreen(Screen.Results);
@@ -117,12 +112,13 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
       <Logo />
 
       <Box flexDirection="column" marginTop={1} width={Math.min(width, 108)}>
-        <Box borderStyle="round" paddingX={2}>
+        <Box borderStyle="round" paddingX={2} justifyContent="space-between">
           <TextInput
             value={queryValue}
             onChange={setQueryValue}
             placeholder="Search Youtube"
           />
+          {videoDataLoading && <Text dimColor>loading...</Text>}
         </Box>
 
         {/* Suggestions */}

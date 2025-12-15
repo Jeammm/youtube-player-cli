@@ -31,6 +31,7 @@ interface PlayerState {
   error: string | null;
   searchResults: Video[];
   searchQuery: string;
+  loadedVideoId: string;
 
   // Actions
   initPlayer: () => Promise<void>;
@@ -49,6 +50,7 @@ interface PlayerState {
   setCurrentVideo: (video: Video | null) => void;
   setSearchResults: (results: Video[]) => void;
   setSearchQuery: (query: string) => void;
+  setLoadedVideoId: (videoId: string) => void;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -65,6 +67,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   error: null,
   searchResults: [],
   searchQuery: "",
+  loadedVideoId: "",
 
   initPlayer: async () => {
     if (get().isInitialized) return;
@@ -115,7 +118,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     try {
       await mpvPlayer.load(get().currentVideo!.videoId);
-      set({ isPlaying: true, status: "playing" });
+      set({
+        isPlaying: true,
+        status: "playing",
+        loadedVideoId: get().currentVideo!.videoId,
+      });
     } catch (error: any) {
       set({ status: "error", error: error.message, isPlaying: false });
     }
@@ -210,4 +217,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setSearchResults: (results: Video[]) => set({ searchResults: results }),
 
   setSearchQuery: (q: string) => set({ searchQuery: q }),
+
+  setLoadedVideoId: (videoId: string) => set({ loadedVideoId: videoId }),
 }));

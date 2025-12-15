@@ -34,3 +34,19 @@ const formatDuration = (totalSeconds: number): string => {
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 };
+
+export async function getVideoMeta(videoId: string): Promise<VideoResult> {
+  const result = await ytSearch({ videoId });
+
+  if (!result || !result.title) {
+    throw new Error("Failed to fetch video metadata");
+  }
+
+  return {
+    videoId: result.videoId,
+    title: result.title,
+    author: result.author?.name ?? "",
+    duration: result.timestamp ?? "",
+    thumbnail: result.thumbnail,
+  };
+}

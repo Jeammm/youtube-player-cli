@@ -124,7 +124,7 @@ const Results = ({
     );
   }
 
-  const itemsPerPage = Math.max(1, Math.floor(LIST_HEIGHT / ITEM_HEIGHT)) + 1;
+  const itemsPerPage = Math.max(1, Math.floor(LIST_HEIGHT / ITEM_HEIGHT));
 
   const startIndex = Math.min(
     Math.max(0, selectedIndex - Math.floor(itemsPerPage / 2)),
@@ -142,12 +142,7 @@ const Results = ({
   return (
     <Box flexDirection="column" height={terminalHeight}>
       {/* ───── Sticky Header ───── */}
-      <Box
-        flexDirection="column"
-        height={HEADER_HEIGHT}
-        borderStyle="round"
-        paddingX={1}
-      >
+      <Box flexDirection="column" borderStyle="round" paddingX={1}>
         <Box justifyContent="space-between">
           <Text bold>Results for “{searchQuery}”</Text>
           <Text dimColor>↑↓ navigate • Enter play • Esc back</Text>
