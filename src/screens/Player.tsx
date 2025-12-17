@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { Screen } from "../router/screen.js";
 import { usePlayerStore } from "../store/playerStore.js";
@@ -6,57 +6,52 @@ import ProgressBar from "../ui/ProgressBar.js";
 import Image from "ink-picture";
 import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
 import ScrollableVideoList from "../ui/ScrollableVideoList.js";
+import { useRouterStore } from "../store/routerStore.js";
+import { formatTime } from "../utils/formatter.js";
 
 const THUMBNAIL_WIDTH = 46;
 const THUMBNAIL_HEIGHT = 13;
 
-interface PlayerProps {
-  videoId: string;
-  setScreen: (screen: Screen) => void;
-  handleBack: () => void;
-}
-
-const Player = ({ setScreen, handleBack }: PlayerProps) => {
+const Player = () => {
   const {
     isInitialized,
     isPlaying,
     progress,
     duration,
     autoplay,
-    loop,
-    currentVideo,
+    loopMode,
     status,
     error,
-    initPlayer,
-    loadVideo,
     togglePlayPause,
+    clearQueue,
     next,
     previous,
     toggleAutoplay,
-    toggleLoop,
-    play,
-    loadedVideoId,
+    cycleLoopMode,
     queue,
     seek,
+    currentIndex,
   } = usePlayerStore();
+
+  const { screens, setFocusedScreen, closeScreens } = useRouterStore();
 
   const [width] = useStdoutDimensions();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  useEffect(() => {
-    initPlayer();
-  }, [initPlayer]);
-
-  useEffect(() => {
-    if (isInitialized && currentVideo?.videoId !== loadedVideoId) {
-      loadVideo();
-      play();
-    }
-  }, [isInitialized, currentVideo, loadVideo, loadedVideoId]);
+  const currentVideo = useMemo(() => {
+    return queue[currentIndex] || null;
+  }, [currentIndex, queue]);
 
   useInput((input, key) => {
     if (key.escape) {
-      handleBack(); // Go back to results
+      if (screens[Screen.Results]) {
+        closeScreens([Screen.Player]);
+        setFocusedScreen(Screen.Results);
+      } else {
+        closeScreens([Screen.Player]);
+        setFocusedScreen(Screen.Home);
+      }
+      clearQueue();
     } else if (input === " ") {
       togglePlayPause();
     } else if (input === "n" || input === "N") {
@@ -66,19 +61,13 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
     } else if (input === "a" || input === "A") {
       toggleAutoplay();
     } else if (input === "l" || input === "L") {
-      toggleLoop();
+      cycleLoopMode();
     } else if (key.leftArrow) {
       seek(-5);
     } else if (key.rightArrow) {
       seek(5);
     }
   });
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds < 10 ? "0" : ""}${remainingSeconds}`;
-  };
 
   if (status === "error") {
     return <Text color="red">Player Error: {error}</Text>;
@@ -89,7 +78,7 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
   }
 
   if (!currentVideo) {
-    return <Text>Loading video information...</Text>;
+    return <Text>Loading Video...</Text>;
   }
 
   return (
@@ -133,7 +122,7 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
             <Text dimColor>Space Play ▶ / Pause ⏸</Text>
             <Text dimColor>N Next P Prev</Text>
             <Text dimColor>A Autoplay [{autoplay ? "ON" : "OFF"}]</Text>
-            <Text dimColor>L Loop [{loop ? "ON" : "OFF"}]</Text>
+            <Text dimColor>L Loop [{loopMode.toUpperCase()}]</Text>
             <Text dimColor>ESC Stop</Text>
             <Text dimColor>
               <Text bold>←</Text> / <Text bold>→</Text> Seek 5s
@@ -162,12 +151,17 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
       </Box>
 
       {/* ───── Queue List ───── */}
-      <ScrollableVideoList
-        videoList={queue}
-        selectedIndex={selectedIndex}
-        setSelectedIndex={setSelectedIndex}
-        hideThumbnail
-      />
+      {queue.length > 1 && (
+        <Box marginTop={1} flexDirection="column" flexGrow={1} gap={1}>
+          <Text>Up Next</Text>
+          <ScrollableVideoList
+            videoList={queue}
+            selectedIndex={selectedIndex}
+            setSelectedIndex={setSelectedIndex}
+            hideThumbnail
+          />
+        </Box>
+      )}
     </Box>
   );
 };

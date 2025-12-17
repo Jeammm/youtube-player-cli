@@ -1,8 +1,8 @@
 import { Box, Text, useInput, useStdout } from "ink";
-import { Video } from "../store/playerStore.js";
 import Image from "ink-picture";
+import { Video } from "../types/video.js";
 
-const HEADER_HEIGHT = 5; // title + spacing
+const HEADER_HEIGHT = 5;
 const THUMBNAIL_WIDTH = 30;
 const THUMBNAIL_HEIGHT = 10;
 
@@ -23,7 +23,7 @@ const ScrollableVideoList = ({
 
   const terminalHeight = stdout.rows;
   const LIST_HEIGHT = terminalHeight - HEADER_HEIGHT;
-  const itemHeight = hideThumbnail ? 3 : THUMBNAIL_HEIGHT + (isITerm ? 1 : 0);
+  const itemHeight = hideThumbnail ? 2 : THUMBNAIL_HEIGHT + (isITerm ? 1 : 0);
 
   const itemsPerPage = Math.max(1, Math.floor(LIST_HEIGHT / itemHeight));
 
@@ -61,15 +61,20 @@ const ScrollableVideoList = ({
 
             {hideThumbnail ? null : video.thumbnail ? (
               <Box
-                width={30}
-                height={10}
+                width={THUMBNAIL_WIDTH}
+                height={THUMBNAIL_HEIGHT}
                 paddingTop={isITerm ? 1 : 0}
                 flexShrink={0}
               >
                 <Image src={video.thumbnail} />
               </Box>
             ) : (
-              <Box width={30} height={10} flexShrink={0} borderStyle="round">
+              <Box
+                width={THUMBNAIL_WIDTH}
+                height={THUMBNAIL_HEIGHT}
+                flexShrink={0}
+                borderStyle="round"
+              >
                 <Text dimColor>[ loading ]</Text>
               </Box>
             )}

@@ -11,14 +11,13 @@ import {
 import Logo from "../ascii/Logo.js";
 import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
 import { getVideoMeta } from "../yt/search.js";
+import { useRouterStore } from "../store/routerStore.js";
 
 interface HomeProps {
-  setScreen: (screen: Screen) => void;
   setSearchQuery: (query: string) => void;
-  setVideoId: (videoId: string) => void;
 }
 
-const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
+const Home = ({ setSearchQuery }: HomeProps) => {
   const [queryValue, setQueryValue] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1);
@@ -27,6 +26,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
   const [width] = useStdoutDimensions();
 
   const { setQueue } = usePlayerStore();
+  const { setFocusedScreen } = useRouterStore();
 
   const debouncedQuery = useDebouncedValue(queryValue, 400);
 
@@ -59,8 +59,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
         const videos = await getPlaylistVideos(playlistId);
         if (videos.length > 0) {
           setQueue(videos, 0);
-          setVideoId(videos[0].videoId);
-          setScreen(Screen.Player);
+          setFocusedScreen(Screen.Player);
         }
       } else {
         const url = new URL(query);
@@ -68,18 +67,17 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
         if (videoId) {
           const videoData = await getVideoMeta(videoId);
           setQueue([videoData], 0);
-          setVideoId(videoId);
-          setScreen(Screen.Player);
+          setFocusedScreen(Screen.Player);
         }
       }
       setVideoDataLoading(false);
     } else {
       setSearchQuery(query);
-      setScreen(Screen.Results);
+      setFocusedScreen(Screen.Results);
     }
   };
 
-  useInput((input, key) => {
+  useInput((_, key) => {
     if (key.downArrow && suggestions.length > 0) {
       setSelectedIndex((i) => Math.min(i + 1, suggestions.length - 1));
     }
@@ -103,12 +101,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
   });
 
   return (
-    <Box
-      flexDirection="column"
-      alignItems="center"
-      width={"100%"}
-      height={"100%"}
-    >
+    <Box flexDirection="column" alignItems="center">
       <Logo />
 
       <Box flexDirection="column" marginTop={1} width={Math.min(width, 108)}>
@@ -116,7 +109,7 @@ const Home = ({ setScreen, setSearchQuery, setVideoId }: HomeProps) => {
           <TextInput
             value={queryValue}
             onChange={setQueryValue}
-            placeholder="Search Youtube"
+            placeholder="Search Videos or Paste YouTube URL..."
           />
           {videoDataLoading && <Text dimColor>loading...</Text>}
         </Box>

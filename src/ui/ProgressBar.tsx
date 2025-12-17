@@ -1,6 +1,5 @@
 // Placeholder for ProgressBar component
-import React from 'react';
-import { Box, Text } from 'ink';
+import { Box, Text } from "ink";
 
 interface ProgressBarProps {
   progress: number; // Current progress in seconds
@@ -10,15 +9,26 @@ interface ProgressBarProps {
   empty?: string;
 }
 
-const ProgressBar = ({ progress, duration, width = 40, indicator = '⚪', empty = '─' }: ProgressBarProps) => {
+const ProgressBar = ({
+  progress,
+  duration,
+  width = 40,
+  indicator = "⚪",
+  empty = "─",
+}: ProgressBarProps) => {
   if (duration === 0) {
     return <Text>{empty.repeat(width)}</Text>;
   }
 
-  const filledWidth = Math.min(width, Math.max(0, Math.floor((progress / duration) * width)));
-  const emptyWidth = width - filledWidth - (filledWidth < width ? indicator.length : 0);
+  const filledWidth = Math.min(
+    width,
+    Math.max(0, Math.floor((progress / duration) * width))
+  );
+  const emptyWidth =
+    width - filledWidth - (filledWidth < width ? indicator.length : 0);
 
-  const progressBar = empty.repeat(filledWidth) + indicator + empty.repeat(emptyWidth);
+  const progressBar =
+    empty.repeat(filledWidth) + indicator + empty.repeat(emptyWidth);
 
   return (
     <Box>

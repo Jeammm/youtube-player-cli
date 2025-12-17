@@ -4,39 +4,32 @@ import { Screen } from "../router/screen.js";
 import { searchYouTube } from "../yt/search.js";
 import { usePlayerStore } from "../store/playerStore.js";
 import ScrollableVideoList from "../ui/ScrollableVideoList.js";
+import { useRouterStore } from "../store/routerStore.js";
+import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
+import { TAB_BAR_HEIGHT } from "../types/size.js";
 
 interface ResultsProps {
   searchQuery: string;
-  setScreen: (screen: Screen) => void;
-  setVideoId: (videoId: string) => void;
-  handleBack: () => void;
 }
 
-const Results = ({
-  searchQuery,
-  setScreen,
-  setVideoId,
-  handleBack,
-}: ResultsProps) => {
+const Results = ({ searchQuery }: ResultsProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { stdout } = useStdout();
-  const terminalHeight = stdout.rows;
+  const [_, height] = useStdoutDimensions();
+  const availableHeight = height - TAB_BAR_HEIGHT;
 
   const {
-    setCurrentVideo,
     searchResults,
     setSearchResults,
     searchQuery: storedQuery,
     setSearchQuery,
-    queue,
-    addVideoToQueue,
-    loadedVideoId,
+    addVideoToQueueAndPlay,
+    isPlaying,
   } = usePlayerStore();
 
-  const canAddToQueue = !!loadedVideoId || queue.length > 0;
+  const { setFocusedScreen, closeScreens, openScreens } = useRouterStore();
 
   /* ============================
    * Fetch search results
@@ -80,19 +73,27 @@ const Results = ({
    * ============================ */
 
   useInput((input, key) => {
-    if (canAddToQueue && input == "q" && searchResults[selectedIndex]) {
-      addVideoToQueue(searchResults[selectedIndex]);
-      return;
+    if (input == "q" && searchResults[selectedIndex]) {
+      addVideoToQueueAndPlay(searchResults[selectedIndex]);
+      openScreens([Screen.Player]);
+    }
+
+    if (input == "Q" && searchResults[selectedIndex]) {
+      addVideoToQueueAndPlay(searchResults[selectedIndex], { priority: true });
+      openScreens([Screen.Player]);
     }
 
     if (key.return && searchResults[selectedIndex]) {
-      setVideoId(searchResults[selectedIndex].videoId);
-      setCurrentVideo(searchResults[selectedIndex]);
-      setScreen(Screen.Player);
+      addVideoToQueueAndPlay(searchResults[selectedIndex], {
+        playNow: true,
+        priority: true,
+      });
+      setFocusedScreen(Screen.Player);
     }
 
     if (key.escape) {
-      handleBack();
+      setFocusedScreen(Screen.Home);
+      closeScreens([Screen.Results, Screen.Player]);
     }
   });
 
@@ -125,16 +126,19 @@ const Results = ({
    * Main render
    * ============================ */
   return (
-    <Box flexDirection="column" height={terminalHeight}>
+    <Box flexDirection="column" height={availableHeight}>
       {/* ───── Sticky Header ───── */}
       <Box flexDirection="column" borderStyle="round" paddingX={1}>
         <Box justifyContent="space-between">
-          <Text bold>Results for “{searchQuery}”</Text>
-          <Text dimColor>↑↓ navigate • Enter play • Esc back</Text>
+          <Text bold>
+            Results for “{searchQuery}”{" "}
+            {isPlaying ? "(Playing)" : "(not Playing)"}
+          </Text>
+          <Text dimColor>↑↓ navigate • Enter play now • Esc back</Text>
         </Box>
         <Box justifyContent="space-between">
           <Text dimColor>Showing {searchResults.length} results</Text>
-          {canAddToQueue && <Text dimColor>Q Add to Queue</Text>}
+          <Text dimColor>q add to Queue • Q play next</Text>
         </Box>
       </Box>
 

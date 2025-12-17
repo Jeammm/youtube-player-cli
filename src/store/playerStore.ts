@@ -1,24 +1,15 @@
 import { create } from "zustand";
 import mpvPlayer from "../player/mpv.js";
-
-export interface Video {
-  videoId: string;
-  title: string;
-  author: string;
-  duration: string; // e.g., "3:45"
-  thumbnail?: string;
-}
+import { Video } from "../types/video.js";
 
 interface PlayerState {
   isInitialized: boolean;
   isPlaying: boolean;
-  progress: number; // current playback position in seconds
-  duration: number; // total duration in seconds
+  progress: number;
+  duration: number;
   autoplay: boolean;
-  loop: boolean;
   queue: Video[];
   currentIndex: number;
-  currentVideo: Video | null;
   status:
     | "idle"
     | "initializing"
@@ -31,26 +22,31 @@ interface PlayerState {
   error: string | null;
   searchResults: Video[];
   searchQuery: string;
-  loadedVideoId: string;
+  loopMode: "off" | "one" | "all";
 
   // Actions
   initPlayer: () => Promise<void>;
-  loadVideo: (video?: Video) => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
   togglePlayPause: () => Promise<void>;
   next: () => Promise<void>;
   previous: () => Promise<void>;
   toggleAutoplay: () => void;
-  toggleLoop: () => void;
+  cycleLoopMode: () => void;
   addVideoToQueue: (video: Video) => void;
+  addVideoToQueueAndPlay: (
+    video: Video,
+    options?: {
+      priority?: boolean;
+      playNow?: boolean;
+    }
+  ) => Promise<void>;
   setQueue: (videos: Video[], startIndex?: number) => void;
   clearQueue: () => void;
   seek: (seconds: number) => Promise<void>;
-  setCurrentVideo: (video: Video | null) => void;
   setSearchResults: (results: Video[]) => void;
   setSearchQuery: (query: string) => void;
-  setLoadedVideoId: (videoId: string) => void;
+  loadByIndex: (index: number) => Promise<void>;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -68,15 +64,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   searchResults: [],
   searchQuery: "",
   loadedVideoId: "",
+  loopMode: "off",
 
   initPlayer: async () => {
     if (get().isInitialized) return;
+
     set({ status: "initializing" });
+
     try {
       await mpvPlayer.start();
+
       let lastSecond = -1;
 
-      mpvPlayer.on("property-change", (event: any) => {
+      mpvPlayer.on("property-change", async (event: any) => {
         switch (event.name) {
           case "time-pos": {
             const sec = Math.floor(event.data ?? 0);
@@ -88,75 +88,70 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
           }
 
           case "duration":
-            set({ duration: event.data || 0 });
+            set({ duration: event.data ?? 0 });
             break;
 
           case "pause":
-            set({ isPlaying: !event.data });
-            break;
+            const { status } = get();
 
-          case "eof-reached":
-            if (event.data !== true) return;
-
-            const { next, loop, queue } = get();
-
-            // 🔁 Loop current track
-            if (loop) {
-              mpvPlayer.command(["seek", "0", "absolute"]);
-              return;
+            if (status === "playing" || status === "paused") {
+              set({ isPlaying: !event.data });
             }
-
-            if (queue.length > 0) {
-              next();
-              return;
-            }
-
-            // ⏹ End of playback
-            set({ isPlaying: false });
             break;
         }
       });
+
+      mpvPlayer.on("end-file", async (event: any) => {
+        // event.reason: "eof" | "stop" | "error" | "quit"
+
+        if (event.reason !== "eof") return;
+
+        const { autoplay, loopMode, currentIndex, queue } = get();
+
+        if (currentIndex === -1 || queue.length === 0) return;
+
+        // 🔁 Loop ONE
+        if (loopMode === "one") {
+          await mpvPlayer.command(["seek", "0", "absolute"]);
+          await mpvPlayer.command(["set_property", "pause", "false"]);
+          return;
+        }
+
+        if (!autoplay) {
+          set({ isPlaying: false, status: "ended" });
+          return;
+        }
+
+        await get().next();
+      });
+
       await mpvPlayer.observeProperty("time-pos");
       await mpvPlayer.observeProperty("duration");
       await mpvPlayer.observeProperty("pause");
-      await mpvPlayer.observeProperty("eof-reached");
+
       set({ isInitialized: true, status: "ready" });
     } catch (error: any) {
       set({ status: "error", error: error.message });
     }
   },
 
-  loadVideo: async (video?: Video) => {
-    set({ isPlaying: true, status: "loading" });
-    if (video) {
-      set({ currentVideo: video });
-    }
-
-    try {
-      await mpvPlayer.load(get().currentVideo!.videoId);
-      set({
-        isPlaying: true,
-        status: "playing",
-        loadedVideoId: get().currentVideo!.videoId,
-      });
-    } catch (error: any) {
-      set({ status: "error", error: error.message, isPlaying: false });
-    }
-  },
-
   play: async () => {
-    if (get().status === "ended" && get().currentVideo) {
-      // If ended, restart current video
-      await mpvPlayer.load(get().currentVideo!.videoId);
-      set({ isPlaying: true, status: "playing", progress: 0 });
-    } else if (get().currentVideo) {
+    const { status, currentIndex, queue, loadByIndex } = get();
+
+    if (status === "paused") {
       await mpvPlayer.play();
       set({ isPlaying: true, status: "playing" });
-    } else if (get().queue.length > 0) {
-      // If nothing is playing but queue exists, play first item
-      const firstVideo = get().queue[0];
-      set({ currentIndex: 0, currentVideo: firstVideo });
-      await get().loadVideo(firstVideo);
+      return;
+    }
+
+    if (status === "ended" && currentIndex !== -1) {
+      await loadByIndex(currentIndex);
+      return;
+    }
+
+    if (currentIndex === -1 && queue.length > 0) {
+      await loadByIndex(0);
+      return;
     }
   },
 
@@ -175,76 +170,163 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   next: async () => {
-    const { queue, loadVideo } = get();
+    const { queue, currentIndex, loadByIndex } = get();
 
-    // Remove current video
-    const [, ...rest] = queue;
+    if (queue.length === 0) return;
 
-    if (rest.length === 0) {
+    const nextIndex = currentIndex + 1;
+
+    // End of queue
+    if (nextIndex >= queue.length) {
       set({
-        queue: [],
-        currentVideo: null,
-        currentIndex: -1,
         isPlaying: false,
         status: "ended",
+        currentIndex: -1,
       });
       await mpvPlayer.stop();
       return;
     }
 
-    const nextVideo = rest[0];
-
-    set({
-      queue: rest,
-      currentVideo: nextVideo,
-      currentIndex: 0,
-    });
-
-    await loadVideo(nextVideo);
+    await loadByIndex(nextIndex);
   },
 
   previous: async () => {
-    const { queue, currentIndex, loadVideo } = get();
-    if (queue.length === 0) return;
+    const { queue, currentIndex, loadByIndex } = get();
 
-    const prevIndex = (currentIndex - 1 + queue.length) % queue.length;
-    if (prevIndex !== currentIndex || queue.length === 1) {
-      const prevVideo = queue[prevIndex];
-      set({ currentIndex: prevIndex, currentVideo: prevVideo });
-      await loadVideo(prevVideo);
-    } else {
-      // Same logic as next, if queue has only one video
-      set({ isPlaying: false, status: "ended" });
-      await mpvPlayer.stop();
+    if (queue.length === 0 || currentIndex === -1) return;
+
+    if (currentIndex === 0) {
+      await mpvPlayer.command(["seek", "0", "absolute"]);
+      return;
     }
+
+    await loadByIndex(currentIndex - 1);
   },
 
   toggleAutoplay: () => set((state) => ({ autoplay: !state.autoplay })),
-  toggleLoop: () => set((state) => ({ loop: !state.loop })),
+
+  cycleLoopMode: () =>
+    set((state) => {
+      let newMode: "off" | "one" | "all";
+      if (state.loopMode === "off") {
+        newMode = "one";
+      } else if (state.loopMode === "one") {
+        newMode = "all";
+      } else {
+        newMode = "off";
+      }
+      return { loopMode: newMode };
+    }),
 
   addVideoToQueue: (video: Video) =>
     set((state) => ({ queue: [...state.queue, video] })),
 
-  setQueue: (videos: Video[], startIndex: number = 0) => {
-    set({ queue: videos, currentIndex: startIndex });
-    if (videos.length > 0 && startIndex !== -1) {
-      get().loadVideo(videos[startIndex]);
+  addVideoToQueueAndPlay: async (
+    video: Video,
+    options?: { priority?: boolean; playNow?: boolean }
+  ) => {
+    const { priority = false, playNow = false } = options ?? {};
+
+    let indexToPlay: number | null = null;
+
+    set((state) => {
+      const { queue, currentIndex, isPlaying } = state;
+
+      // 🟢 Idle → append and play
+      if (!isPlaying || currentIndex === -1) {
+        const newQueue = [...queue, video];
+        indexToPlay = newQueue.length - 1;
+
+        return {
+          queue: newQueue,
+          currentIndex: indexToPlay,
+        };
+      }
+
+      // ▶️ Playing
+      if (priority) {
+        // Insert right after current
+        const insertIndex = currentIndex + 1;
+        const newQueue = [
+          ...queue.slice(0, insertIndex),
+          video,
+          ...queue.slice(insertIndex),
+        ];
+
+        if (playNow) {
+          indexToPlay = insertIndex;
+          return {
+            queue: newQueue,
+            currentIndex: insertIndex,
+          };
+        }
+
+        return { queue: newQueue };
+      }
+
+      // ⏭ Normal enqueue (end of queue)
+      return { queue: [...queue, video] };
+    });
+
+    if (indexToPlay !== null) {
+      await get().loadByIndex(indexToPlay);
     }
   },
 
-  clearQueue: () => set({ queue: [], currentIndex: -1, currentVideo: null }),
+  loadByIndex: async (index: number) => {
+    const { queue } = get();
+    const video = queue[index];
+    if (!video) return;
+
+    set({
+      currentIndex: index,
+      status: "loading",
+      progress: 0,
+    });
+
+    await mpvPlayer.stop();
+    await mpvPlayer.load(video.videoId);
+
+    set({
+      isPlaying: true,
+      status: "playing",
+    });
+  },
+
+  setQueue: async (videos: Video[], startIndex: number = 0) => {
+    const validIndex =
+      videos.length === 0 || startIndex < 0 || startIndex >= videos.length
+        ? -1
+        : startIndex;
+
+    set({
+      queue: videos,
+      currentIndex: validIndex,
+      progress: 0,
+    });
+
+    if (validIndex !== -1) {
+      await get().loadByIndex(validIndex);
+    }
+  },
+
+  clearQueue: async () => {
+    await mpvPlayer.stop();
+    set({
+      queue: [],
+      currentIndex: -1,
+      isPlaying: false,
+      status: "idle",
+      progress: 0,
+      duration: 0,
+    });
+  },
 
   seek: async (seconds: number) => {
     await mpvPlayer.seek(seconds);
   },
 
-  setCurrentVideo: (video: Video | null) => {
-    set({ currentVideo: video });
-  },
-
   setSearchResults: (results: Video[]) => set({ searchResults: results }),
 
   setSearchQuery: (q: string) => set({ searchQuery: q }),
-
-  setLoadedVideoId: (videoId: string) => set({ loadedVideoId: videoId }),
 }));
