@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import mpvPlayer from "../player/mpv.js";
 
-interface Video {
+export interface Video {
   videoId: string;
   title: string;
   author: string;
@@ -96,7 +96,23 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
             break;
 
           case "eof-reached":
-            // your logic
+            if (event.data !== true) return;
+
+            const { next, loop, queue } = get();
+
+            // 🔁 Loop current track
+            if (loop) {
+              mpvPlayer.command(["seek", "0", "absolute"]);
+              return;
+            }
+
+            if (queue.length > 0) {
+              next();
+              return;
+            }
+
+            // ⏹ End of playback
+            set({ isPlaying: false });
             break;
         }
       });
@@ -159,20 +175,32 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   next: async () => {
-    const { queue, currentIndex, loadVideo } = get();
-    if (queue.length === 0) return;
+    const { queue, loadVideo } = get();
 
-    const nextIndex = (currentIndex + 1) % queue.length;
-    if (nextIndex !== currentIndex || queue.length === 1) {
-      // Play next or replay if only one and not looped
-      const nextVideo = queue[nextIndex];
-      set({ currentIndex: nextIndex, currentVideo: nextVideo });
-      await loadVideo(nextVideo);
-    } else {
-      // If queue has only one video and not explicitly looped, stop.
-      set({ isPlaying: false, status: "ended" });
+    // Remove current video
+    const [, ...rest] = queue;
+
+    if (rest.length === 0) {
+      set({
+        queue: [],
+        currentVideo: null,
+        currentIndex: -1,
+        isPlaying: false,
+        status: "ended",
+      });
       await mpvPlayer.stop();
+      return;
     }
+
+    const nextVideo = rest[0];
+
+    set({
+      queue: rest,
+      currentVideo: nextVideo,
+      currentIndex: 0,
+    });
+
+    await loadVideo(nextVideo);
   },
 
   previous: async () => {

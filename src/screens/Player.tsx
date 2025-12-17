@@ -5,6 +5,7 @@ import { usePlayerStore } from "../store/playerStore.js";
 import ProgressBar from "../ui/ProgressBar.js";
 import Image from "ink-picture";
 import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
+import ScrollableVideoList from "../ui/ScrollableVideoList.js";
 
 const THUMBNAIL_WIDTH = 46;
 const THUMBNAIL_HEIGHT = 13;
@@ -35,9 +36,12 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
     toggleLoop,
     play,
     loadedVideoId,
+    queue,
+    seek,
   } = usePlayerStore();
 
   const [width] = useStdoutDimensions();
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
     initPlayer();
@@ -63,6 +67,10 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
       toggleAutoplay();
     } else if (input === "l" || input === "L") {
       toggleLoop();
+    } else if (key.leftArrow) {
+      seek(-5);
+    } else if (key.rightArrow) {
+      seek(5);
     }
   });
 
@@ -127,6 +135,9 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
             <Text dimColor>A Autoplay [{autoplay ? "ON" : "OFF"}]</Text>
             <Text dimColor>L Loop [{loop ? "ON" : "OFF"}]</Text>
             <Text dimColor>ESC Stop</Text>
+            <Text dimColor>
+              <Text bold>←</Text> / <Text bold>→</Text> Seek 5s
+            </Text>
           </Box>
         </Box>
       </Box>
@@ -149,6 +160,14 @@ const Player = ({ setScreen, handleBack }: PlayerProps) => {
           </Text>
         )}
       </Box>
+
+      {/* ───── Queue List ───── */}
+      <ScrollableVideoList
+        videoList={queue}
+        selectedIndex={selectedIndex}
+        setSelectedIndex={setSelectedIndex}
+        hideThumbnail
+      />
     </Box>
   );
 };

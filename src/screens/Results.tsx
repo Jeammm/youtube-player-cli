@@ -1,14 +1,9 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Text, useInput, useStdout } from "ink";
 import { Screen } from "../router/screen.js";
-import { searchYouTube, VideoResult } from "../yt/search.js";
-import Image from "ink-picture";
+import { searchYouTube } from "../yt/search.js";
 import { usePlayerStore } from "../store/playerStore.js";
-
-const HEADER_HEIGHT = 5; // title + spacing
-const ITEM_HEIGHT = 9; // thumbnail(10) + margin(1)
-
-const isITerm = process.env.TERM_PROGRAM === "iTerm.app";
+import ScrollableVideoList from "../ui/ScrollableVideoList.js";
 
 interface ResultsProps {
   searchQuery: string;
@@ -29,7 +24,6 @@ const Results = ({
 
   const { stdout } = useStdout();
   const terminalHeight = stdout.rows;
-  const LIST_HEIGHT = terminalHeight - HEADER_HEIGHT;
 
   const {
     setCurrentVideo,
@@ -37,7 +31,12 @@ const Results = ({
     setSearchResults,
     searchQuery: storedQuery,
     setSearchQuery,
+    queue,
+    addVideoToQueue,
+    loadedVideoId,
   } = usePlayerStore();
+
+  const canAddToQueue = !!loadedVideoId || queue.length > 0;
 
   /* ============================
    * Fetch search results
@@ -79,13 +78,11 @@ const Results = ({
   /* ============================
    * Keyboard input
    * ============================ */
-  useInput((input, key) => {
-    if (key.upArrow) {
-      setSelectedIndex((i) => Math.max(0, i - 1));
-    }
 
-    if (key.downArrow) {
-      setSelectedIndex((i) => Math.min(searchResults.length - 1, i + 1));
+  useInput((input, key) => {
+    if (canAddToQueue && input == "q" && searchResults[selectedIndex]) {
+      addVideoToQueue(searchResults[selectedIndex]);
+      return;
     }
 
     if (key.return && searchResults[selectedIndex]) {
@@ -124,18 +121,6 @@ const Results = ({
     );
   }
 
-  const itemsPerPage = Math.max(1, Math.floor(LIST_HEIGHT / ITEM_HEIGHT));
-
-  const startIndex = Math.min(
-    Math.max(0, selectedIndex - Math.floor(itemsPerPage / 2)),
-    Math.max(0, searchResults.length - itemsPerPage)
-  );
-
-  const visibleResults = searchResults.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
-
   /* ============================
    * Main render
    * ============================ */
@@ -147,57 +132,18 @@ const Results = ({
           <Text bold>Results for “{searchQuery}”</Text>
           <Text dimColor>↑↓ navigate • Enter play • Esc back</Text>
         </Box>
-        <Text dimColor>Showing {searchResults.length} results</Text>
+        <Box justifyContent="space-between">
+          <Text dimColor>Showing {searchResults.length} results</Text>
+          {canAddToQueue && <Text dimColor>Q Add to Queue</Text>}
+        </Box>
       </Box>
 
       {/* ───── Scrollable List ───── */}
-      <Box
-        flexDirection="column"
-        flexGrow={1}
-        overflow="hidden"
-        paddingBottom={1}
-      >
-        {visibleResults.map((video, index) => {
-          const realIndex = startIndex + index;
-          const selected = realIndex === selectedIndex;
-
-          return (
-            <Box
-              key={video.videoId}
-              flexDirection="row"
-              height={isITerm ? ITEM_HEIGHT - 1 : ITEM_HEIGHT}
-            >
-              {/* Thumbnail */}
-
-              {video.thumbnail ? (
-                <Box
-                  width={30}
-                  height={10}
-                  paddingTop={isITerm ? 1 : 0}
-                  flexShrink={0}
-                >
-                  <Image src={video.thumbnail} />
-                </Box>
-              ) : (
-                <Box width={30} height={10} flexShrink={0} borderStyle="round">
-                  <Text dimColor>[ loading ]</Text>
-                </Box>
-              )}
-
-              {/* Metadata */}
-              <Box flexDirection="column" marginLeft={1}>
-                <Text color={selected ? "cyan" : undefined}>
-                  {selected ? "▶ " : "  "}
-                  {video.title}
-                </Text>
-                <Text dimColor>
-                  {video.author} • {video.duration}
-                </Text>
-              </Box>
-            </Box>
-          );
-        })}
-      </Box>
+      <ScrollableVideoList
+        videoList={searchResults}
+        selectedIndex={selectedIndex}
+        setSelectedIndex={setSelectedIndex}
+      />
     </Box>
   );
 };
