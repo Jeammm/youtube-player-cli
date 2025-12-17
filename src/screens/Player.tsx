@@ -8,9 +8,11 @@ import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
 import ScrollableVideoList from "../ui/ScrollableVideoList.js";
 import { useRouterStore } from "../store/routerStore.js";
 import { formatTime } from "../utils/formatter.js";
+import { TAB_BAR_HEIGHT } from "../types/size.js";
 
 const THUMBNAIL_WIDTH = 46;
 const THUMBNAIL_HEIGHT = 13;
+const PLAYER_BOX_HEIGHT = 18;
 
 const Player = () => {
   const {
@@ -35,8 +37,9 @@ const Player = () => {
 
   const { screens, setFocusedScreen, closeScreens } = useRouterStore();
 
-  const [width] = useStdoutDimensions();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [width, height] = useStdoutDimensions();
+  const availableQueueBoxHeight = height - TAB_BAR_HEIGHT - PLAYER_BOX_HEIGHT;
 
   const currentVideo = useMemo(() => {
     return queue[currentIndex] || null;
@@ -152,13 +155,20 @@ const Player = () => {
 
       {/* ───── Queue List ───── */}
       {queue.length > 1 && (
-        <Box marginTop={1} flexDirection="column" flexGrow={1} gap={1}>
-          <Text>Up Next</Text>
+        <Box
+          marginTop={1}
+          flexDirection="column"
+          height={availableQueueBoxHeight - 3}
+          gap={1}
+        >
+          <Text>{queue.length - currentIndex - 1} Up Next</Text>
           <ScrollableVideoList
+            availableHeight={availableQueueBoxHeight - 5}
             videoList={queue}
             selectedIndex={selectedIndex}
             setSelectedIndex={setSelectedIndex}
             hideThumbnail
+            highlightPlaying
           />
         </Box>
       )}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, Text, useInput, useStdout } from "ink";
+import { Box, Text, useInput } from "ink";
 import { Screen } from "../router/screen.js";
 import { searchYouTube } from "../yt/search.js";
 import { usePlayerStore } from "../store/playerStore.js";
@@ -7,6 +7,8 @@ import ScrollableVideoList from "../ui/ScrollableVideoList.js";
 import { useRouterStore } from "../store/routerStore.js";
 import { useStdoutDimensions } from "../utils/useStdoutDimensions.js";
 import { TAB_BAR_HEIGHT } from "../types/size.js";
+
+const SEARCH_HEADER_HEIGHT = 4;
 
 interface ResultsProps {
   searchQuery: string;
@@ -144,6 +146,7 @@ const Results = ({ searchQuery }: ResultsProps) => {
 
       {/* ───── Scrollable List ───── */}
       <ScrollableVideoList
+        availableHeight={availableHeight - SEARCH_HEADER_HEIGHT}
         videoList={searchResults}
         selectedIndex={selectedIndex}
         setSelectedIndex={setSelectedIndex}
