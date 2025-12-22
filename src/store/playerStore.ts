@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import mpvPlayer from "../player/mpv.js";
 import { Video } from "../types/video.js";
+import { fetchRecommendedVideo } from "../yt/getRecommended.js";
 
 interface PlayerState {
   isInitialized: boolean;
@@ -24,6 +25,7 @@ interface PlayerState {
   searchQuery: string;
   loopMode: "off" | "one" | "all";
   mpvReady: boolean;
+  recommendedNextVideo: Video | null;
 
   // Actions
   initPlayer: () => Promise<void>;
@@ -48,6 +50,7 @@ interface PlayerState {
   setSearchResults: (results: Video[]) => void;
   setSearchQuery: (query: string) => void;
   loadByIndex: (index: number) => Promise<void>;
+  getRecommendedVideo: (currentVideoId: string) => Promise<Video | null>;
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -67,6 +70,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   loadedVideoId: "",
   loopMode: "off",
   mpvReady: false,
+  recommendedNextVideo: null,
 
   initPlayer: async () => {
     if (get().isInitialized) return;
@@ -176,14 +180,38 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   next: async () => {
-    const { queue, currentIndex, loadByIndex } = get();
+    let { queue, currentIndex, loadByIndex, recommendedNextVideo } = get();
 
-    if (queue.length === 0) return;
+    // CASE 1: Queue empty → insert recommended → play it
+    if (queue.length === 0) {
+      if (!recommendedNextVideo) return;
 
+      set({
+        queue: [recommendedNextVideo],
+        currentIndex: 0,
+      });
+
+      await loadByIndex(0);
+      return;
+    }
+
+    // CASE 2: Normal queue logic
     const nextIndex = currentIndex + 1;
 
-    // End of queue
+    // End of queue → use recommended next video
     if (nextIndex >= queue.length) {
+      if (recommendedNextVideo) {
+        set((state) => ({
+          queue: [...state.queue, recommendedNextVideo],
+        }));
+
+        const newIndex = queue.length; // append at end
+
+        await loadByIndex(newIndex);
+        return;
+      }
+
+      // No recommendation → stop
       set({
         isPlaying: false,
         status: "ended",
@@ -193,6 +221,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       return;
     }
 
+    // CASE 3: Normal next video
     await loadByIndex(nextIndex);
   },
 
@@ -280,7 +309,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   loadByIndex: async (index: number) => {
-    const { queue } = get();
+    const { queue, getRecommendedVideo } = get();
     const video = queue[index];
     if (!video) return;
 
@@ -294,9 +323,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     await mpvPlayer.stop();
     await mpvPlayer.load(video.videoId);
 
+    const nextVideo = await getRecommendedVideo(video.videoId);
+
     set({
       isPlaying: true,
       status: "playing",
+      recommendedNextVideo: nextVideo,
     });
   },
 
@@ -326,6 +358,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       status: "idle",
       progress: 0,
       duration: 0,
+      recommendedNextVideo: null,
     });
   },
 
@@ -338,4 +371,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setSearchResults: (results: Video[]) => set({ searchResults: results }),
 
   setSearchQuery: (q: string) => set({ searchQuery: q }),
+
+  getRecommendedVideo: async (
+    currentVideoId: string
+  ): Promise<Video | null> => {
+    try {
+      const rec = await fetchRecommendedVideo(currentVideoId);
+      return rec ?? null;
+    } catch {
+      return null;
+    }
+  },
 }));

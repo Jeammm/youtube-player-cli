@@ -12,7 +12,6 @@ import { TAB_BAR_HEIGHT } from "../types/size.js";
 
 const THUMBNAIL_WIDTH = 46;
 const THUMBNAIL_HEIGHT = 13;
-const PLAYER_BOX_HEIGHT = 18;
 
 const Player = () => {
   const {
@@ -39,7 +38,9 @@ const Player = () => {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [width, height] = useStdoutDimensions();
-  const availableQueueBoxHeight = height - TAB_BAR_HEIGHT - PLAYER_BOX_HEIGHT;
+  const availableQueueBoxHeight =
+    height - TAB_BAR_HEIGHT - THUMBNAIL_HEIGHT - 7;
+  const availableDescriptionBoxWidth = width - THUMBNAIL_WIDTH - 6;
 
   const currentVideo = useMemo(() => {
     return queue[currentIndex] || null;
@@ -81,7 +82,11 @@ const Player = () => {
   }
 
   if (!currentVideo) {
-    return <Text>Loading Video...</Text>;
+    return (
+      <Text>
+        Loading Video...{currentIndex} {queue.length}
+      </Text>
+    );
   }
 
   return (
@@ -119,38 +124,50 @@ const Player = () => {
           </Text>
           <Text dimColor>{currentVideo.author}</Text>
 
-          <Box flexGrow={1}></Box>
+          <Box flexGrow={1} />
 
-          <Box marginTop={1} flexDirection="column" gap={1}>
-            <Text dimColor>Space Play ▶ / Pause ⏸</Text>
-            <Text dimColor>N Next P Prev</Text>
-            <Text dimColor>A Autoplay [{autoplay ? "ON" : "OFF"}]</Text>
-            <Text dimColor>L Loop [{loopMode.toUpperCase()}]</Text>
-            <Text dimColor>ESC Stop</Text>
-            <Text dimColor>
-              <Text bold>←</Text> / <Text bold>→</Text> Seek 5s
-            </Text>
+          <Box marginTop={1} flexDirection="column">
+            <Box>
+              <Box borderStyle="round" paddingX={1}>
+                <Text>Space {isPlaying ? "Pause ⏸" : "Play ▶"}</Text>
+              </Box>
+              <Box borderStyle="round" paddingX={1}>
+                <Text bold>←</Text>
+              </Box>
+              <Box borderStyle="round" paddingX={1}>
+                <Text bold>→</Text>
+              </Box>
+
+              <Box flexGrow={1} />
+
+              <Box borderStyle="round" paddingX={1}>
+                <Text>A Autoplay [{autoplay ? "ON" : "OFF"}]</Text>
+              </Box>
+
+              <Box borderStyle="round" paddingX={1}>
+                <Text>L Loop [{loopMode.toUpperCase()}]</Text>
+              </Box>
+            </Box>
+
+            <Box flexDirection="row" alignItems="center">
+              <Text>{isPlaying ? "⏸" : "▶"}</Text>
+              <Box marginX={1}>
+                <ProgressBar
+                  progress={progress}
+                  duration={duration}
+                  width={availableDescriptionBoxWidth - 15}
+                />
+              </Box>
+              {!duration ? (
+                <Text dimColor>Loading...</Text>
+              ) : (
+                <Text dimColor>
+                  {formatTime(progress)} / {formatTime(duration)}
+                </Text>
+              )}
+            </Box>
           </Box>
         </Box>
-      </Box>
-
-      {/* ───── Progress Bar (under thumbnail) ───── */}
-      <Box marginTop={1} flexDirection="row" alignItems="center">
-        <Text>{isPlaying ? "⏸" : "▶"}</Text>
-        <Box marginX={1}>
-          <ProgressBar
-            progress={progress}
-            duration={duration}
-            width={width - 25}
-          />
-        </Box>
-        {!duration ? (
-          <Text dimColor>Loading...</Text>
-        ) : (
-          <Text dimColor>
-            {formatTime(progress)} / {formatTime(duration)}
-          </Text>
-        )}
       </Box>
 
       {/* ───── Queue List ───── */}
@@ -158,12 +175,34 @@ const Player = () => {
         <Box
           marginTop={1}
           flexDirection="column"
-          height={availableQueueBoxHeight - 3}
+          flexGrow={1}
           gap={1}
+          borderStyle="doubleSingle"
+          borderBottom={false}
+          borderLeft={false}
+          borderRight={false}
         >
-          <Text>{queue.length - currentIndex - 1} Up Next</Text>
+          <Box justifyContent="space-between">
+            <Box>
+              <Text>
+                {queue.length - currentIndex - 1} Up Next{" "}
+                {availableQueueBoxHeight}
+              </Text>
+            </Box>
+
+            <Box gap={2}>
+              <Text>
+                <Text bold>P</Text> Previous Video
+              </Text>
+
+              <Text>
+                <Text bold>N</Text> Next Video
+              </Text>
+            </Box>
+          </Box>
+
           <ScrollableVideoList
-            availableHeight={availableQueueBoxHeight - 5}
+            availableHeight={availableQueueBoxHeight}
             videoList={queue}
             selectedIndex={selectedIndex}
             setSelectedIndex={setSelectedIndex}
