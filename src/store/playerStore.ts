@@ -23,6 +23,7 @@ interface PlayerState {
   searchResults: Video[];
   searchQuery: string;
   loopMode: "off" | "one" | "all";
+  mpvReady: boolean;
 
   // Actions
   initPlayer: () => Promise<void>;
@@ -65,6 +66,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   searchQuery: "",
   loadedVideoId: "",
   loopMode: "off",
+  mpvReady: false,
 
   initPlayer: async () => {
     if (get().isInitialized) return;
@@ -123,6 +125,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         }
 
         await get().next();
+      });
+
+      mpvPlayer.on("file-loaded", () => {
+        set({ mpvReady: true });
       });
 
       await mpvPlayer.observeProperty("time-pos");
@@ -282,6 +288,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       currentIndex: index,
       status: "loading",
       progress: 0,
+      mpvReady: false,
     });
 
     await mpvPlayer.stop();
@@ -323,6 +330,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   },
 
   seek: async (seconds: number) => {
+    const { mpvReady } = get();
+    if (!mpvReady) return;
     await mpvPlayer.seek(seconds);
   },
 

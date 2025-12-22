@@ -85,7 +85,7 @@ const Player = () => {
   }
 
   return (
-    <Box flexDirection="column" width={width} paddingX={2}>
+    <Box flexDirection="column" width={width}>
       <Box borderStyle="round" borderColor="red" paddingX={1}>
         <Text color="red">YouTube : </Text>
         <Text> https://www.youtube.com/watch?v={currentVideo.videoId}</Text>
